@@ -1,8 +1,7 @@
 # TODO LIST ----------------------------------------------------------------------------------------
-# TODO parse.split_info.ons3col: allow to write the 3 columns to a diff text file for each cond
 # 
 
-# main wrapper
+# main wrapper -------------------------------------------------------------------------------------
 
 glm_on_oppni <- function(oppni_path, output_dir, pipe="FIX", sNorm=T, contrast=NULL) {
   oppni.data  <- import_oppni(oppni_path)
