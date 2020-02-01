@@ -6,11 +6,15 @@
 
 glm_on_oppni <- function(oppni_path, output_dir, pipe="FIX", sNorm=T, contrast=NULL) {
   oppni.data  <- import_oppni(oppni_path)
-  oppni.input <- oppni_data$input_data
-  oppni.pipe  <- oppni_data$pipe_config
+  oppni.input <- oppni.data$input_data
+  oppni.pipe  <- oppni.data$pipe_config
   
   output_dir.fsf <- file.path(output_dir, "feat_results")
   output_dir.ons <- file.path(output_dir, "onsets")
+  
+  if (is.windows()) {
+    oppni.input[] <- lapply(oppni.input, FUN = function(X) {gsub(x=X, pattern="/global/home/hpc3586/", replacement="Z://", fixed=T)})
+  }
   
   # loop through each row
   for (op.row in nrow(oppni.input)) {
@@ -20,9 +24,9 @@ glm_on_oppni <- function(oppni_path, output_dir, pipe="FIX", sNorm=T, contrast=N
     
     oppni.task <- oppni_task.subj(oppni_row    = oppni.input[op.row,], 
                                   onsets.dir   = output_dir.ons, 
-                                  file.pattern = tmp.pattern)
+                                  file_pattern = tmp.pattern)
     oppni_fsf.subj(oppni_task = oppni.task, oppni_pipe_config = oppni.pipe, 
-                   fsf.output = output_dir.fsf, contrast = contrast)
+                   output_dir = output_dir.fsf, contrast = contrast, oppni_row = tmp.row, oppni_pipe = pipe)
   }
 }
 
@@ -122,17 +126,17 @@ parse.oppni_input.check_names <- function(oppni_input_row, oppni_input_line=NULL
 
 # extract task information associated with the provided oppni input.txt file -----------------------
 
-oppni_task.subj <- function(oppni_row, onsets.dir=NULL, file.pattern=NULL) {
+oppni_task.subj <- function(oppni_row, onsets.dir=NULL, file_pattern=NULL) {
   # extract task info
   oppni.task <- parse.split_info(split_info=oppni_row$TASK, DROP=oppni_row$DROP, 
-                                 onsets.dir=onsets.dir, file.pattern=file.pattern)
+                                 onsets.dir=onsets.dir, file_pattern=file_pattern)
   
   return(oppni.task)
 }
 
 # get task info from split_info file ---------------------------------------------------------------
 
-parse.split_info <- function(split_info, DROP = NULL, onsets.dir=NULL, file.pattern=NULL) {
+parse.split_info <- function(split_info, DROP = NULL, onsets.dir=NULL, file_pattern=NULL) {
   
   # find the number of scans to drop
   if (DROP!=0) {
@@ -206,7 +210,7 @@ parse.split_info <- function(split_info, DROP = NULL, onsets.dir=NULL, file.patt
   split_info.list <- parse.split_info.ons3col(split_info.list)
   split_info.list <- parse.split_info.mk_onsFile(split_info.list,
                                                  onsets.dir = onsets.dir,
-                                                 file.pattern = file.pattern)
+                                                 file_pattern = file_pattern)
   
   return(split_info.list)
 }
@@ -303,23 +307,23 @@ parse.split_info.ons3col <- function(split_info.list, output.file = NULL) {
   return(split_info.list)
 }
 
-parse.split_info.mk_onsFile <- function(split_info.list, onsets.dir, file.pattern) {
+parse.split_info.mk_onsFile <- function(split_info.list, onsets.dir, file_pattern) {
   if (!is.null(onsets.dir)) {
     if (!dir.exists(onsets.dir)) {dir.create(onsets.dir, showWarnings = T, recursive = T)}
     
-    if (is.null(file.pattern)) {
-      stop("No file.pattern specified.")
-    } else if (!is.character(file.pattern)) {
-      stop("file.pattern must be a character.")
-    } else if (length(file.pattern)>1) {
+    if (is.null(file_pattern)) {
+      stop("No file_pattern specified.")
+    } else if (!is.character(file_pattern)) {
+      stop("file_pattern must be a character.")
+    } else if (length(file_pattern)>1) {
       stop("You may only specify one file pattern.")
-    } else if (!grepl(pattern="*", x = file.pattern, fixed = T)) {
+    } else if (!grepl(pattern="*", x = file_pattern, fixed = T)) {
       stop("The file pattern must contain a wildcard '*'")
     }
   }
   
   for (cc in 1:length(split_info.list$cond)) {
-    file.name <- gsub(x=file.pattern, pattern="*", replacement=split_info.list$cond[[cc]]$NAME, fixed=T)
+    file.name <- gsub(x=file_pattern, pattern="*", replacement=split_info.list$cond[[cc]]$NAME, fixed=T)
     file.name <- paste0(file.name, ".txt")
     
     abs.path <- file.path(onsets.dir, file.name)
@@ -335,44 +339,52 @@ parse.split_info.mk_onsFile <- function(split_info.list, onsets.dir, file.patter
 
 # the main attraction - this will make the .fsf file for the GLM -----------------------------------
 
-oppni_fsf.subj <- function(oppni_row, oppni_task, oppni_pipe, oppni_pipe_config, output_dir, contrast = NULL) {
+oppni_fsf.subj <- function(oppni_row, oppni_task, oppni_pipe, oppni_pipe_config, output_dir, nNorm, file_pattern, contrast = NULL) {
   
   # make basic single-condition contrasts if no contrast is provided
   if (is.null(contrast)) {
     contrast <- oppni_fsf.mk_con(oppni_task)
-  } else if (!is.list(contrast) & is.numeric(contrast)) {
+  } else if (!is.list(contrast) & all(unlist(lapply(X = contrast, FUN = is.numeric)))) {
     contrast <- list(contrast)
-  } else {
+  } else if (!is.list(contrast)) {
     stop("contrast must be specified as a numeric vector or a list of numeric vectors.")
   }
+  
+  file_pattern <- basename(oppni_row$OUT)
+  
   # check if the contrasks are valid 
   oppni_fsf.check_con(oppni_task=oppni_task, contrast=contrast)
   oppni_fsf.write_txt(oppni_task        = oppni_task, 
                       oppni_pipe_config = oppni_pipe_config, 
                       contrast          = contrast, 
-                      output_dir        = output_dir)
+                      output_dir        = output_dir, oppni_row = oppni_row, 
+                      oppni_pipe        = oppni_pipe, 
+                      oppni_sNorm = sNorm, file_pattern = file_pattern)
   
 } ################################################################################################## FINISH THIS
 
-oppni_fsf.write_txt <- function(oppni_row, oppni_task, oppni_pipe, oppni_sNorm, oppni_pipe_config, contrast, output_path, file_pattern) {
+oppni_fsf.write_txt <- function(oppni_row, oppni_task, oppni_pipe, oppni_sNorm, oppni_pipe_config, contrast, output_dir, file_pattern) {
   if (!oppni_pipe %in% c("IND","FIX","CON")) {
     stop("Invalid oppni_pipe. Select IND, FIX, or COND.")
   }
   
-  fsf_dir <- file.path(output_path, "fsf")
+  fsf_dir <- file.path(output_dir, "fsf")
   if (!dir.exists(fsf_dir)) {
     dir.create(fsf_dir,showWarnings = F, recursive = T)
   }
   
-  feat_dir <- file.path(output_path, "feat_results_lvl1") 
+  feat_dir <- file.path(output_dir, "feat_results_lvl1") 
   if (!dir.exists(feat_dir)) {
     dir.create(feat_dir, showWarnings = F, recursive = T)
   }
   
-  fsf.path    <- file.path(fsf_dir, gsub(x=file.pattern, pattern="*", replacement="feat", fixed=T))
-  feat.output <- file.path(feat_dir, gsub(x=file.pattern, pattern="*", replacement="lvl1"))
+  fsf.path    <- file.path(fsf_dir, gsub(x=file_pattern, pattern="*", replacement="feat", fixed=T))
+  feat.output <- file.path(feat_dir, gsub(x=file_pattern, pattern="*", replacement="lvl1"))
   
   nifti_file <- oppni_fsf.get_outputNifti(oppni_row, pipe = oppni_pipe)
+  
+  print(nifti_file)
+  
   n_timepts  <- get.nifti.hdr(file = nifti_file, args = "-nv")
   n_voxels   <- get.nifti.hdr(file = nifti_file, args = "-n4")
   n_voxels   <- prod(as.numeric(unlist(strsplit(n_voxels, split = " "))), na.rm = T)
@@ -546,9 +558,10 @@ oppni_fsf.get_outputNifti <- function(oppni_row, pipe, sNorm=T) {
   oppni.subj <- basename(oppni_row[,"OUT"])
   oppni.out  <- dirname(oppni_row[,"OUT"])
   
-  oppni.out_nifti <- file.path(oppni.out, "optimization_results", "processed")
-  oppni.out_nifti <- grep(x = list.files(oppni.out_nifti), pattern = oppni.subj, value = T)
+  oppni.out_dir   <- file.path(oppni.out, "optimization_results", "processed")
+  oppni.out_nifti <- grep(x = list.files(oppni.out_dir), pattern = oppni.subj, value = T)
   oppni.out_nifti <- grep(x = oppni.out_nifti, pattern = pipe, value = T)
+  oppni.out_nifti <- file.path(oppni.out_dir, oppni.out_nifti)
   
   if (sNorm) {
     oppni.out_nifti <- grep(x = oppni.out_nifti, pattern = "sNorm", value = T)
@@ -604,7 +617,7 @@ oppni_fsf.name_con <- function(con_vector, oppni_task) {
 
 oppni_fsf.check_con <- function(oppni_task, contrast) {
   # check to make sure the contrasts are all valid
-  con.len <- unlist(lapply(X = contrast, FUN = length))
+  con.len <- unique(unlist(lapply(X = contrast, FUN = length)))
   if (length(con.len) != 1) {
     stop("All contrasts must have the same length")
   }
@@ -636,11 +649,12 @@ get.nifti.hdr <- function(file, args = NULL) {
     stop("The specified file does not exist: ", file)
   }
   
+  
   if (!is.null(args) & !is.character(args)) {
     stop("Specified 3dinfo arguments, 'args', must be a character.")
   }
   
-  hdr.info <- system(command = paste("3dinfo", args, file_nm, sep = " "), intern = T)
+  hdr.info <- system(command = paste("3dinfo", args, file, sep = " "), intern = T)
   
   return(hdr.info)
 }
@@ -769,4 +783,6 @@ if (is.windows()) {
 
 oppni_input_path <- file.path(oppni_path, "input_file.txt")
 oppni_pipe_path  <- file.path(oppni_path, "pronto-options.pkl")
+
+output_dir <- "C:/Users/enter/Desktop/test_feat"
 
