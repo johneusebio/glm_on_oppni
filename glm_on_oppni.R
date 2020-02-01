@@ -2,15 +2,6 @@
 # TODO parse.split_info.ons3col: allow to write the 3 columns to a diff text file for each cond
 # 
 
-# test variables -----------------------------------------------------------------------------------
-
-oppni_path       <- "Z:\\SART_data\\oppni\\output_dir\\GO\\young\\processing_GO_sart_young_replicate_erGNB"
-oppni_input_path <- file.path(oppni_path, "input_file.txt")
-oppni_pipe_path  <- file.path(oppni_path, "pronto-options.pkl")
-
-pickle_reader.path <- "Z:\\\\JE_packages\\glm_on_oppni\\pickle_reader.py"
-template_fsf.path  <- "Z:\\\\JE_packages\\glm_on_oppni\\template.fsf"
-
 # main wrapper
 
 glm_on_oppni <- function(oppni_path, output_dir, pipe="FIX", sNorm=T, contrast=NULL) {
@@ -757,3 +748,25 @@ is.windows <- function() {
   
   return(win.status)
 }
+
+################
+# TESTING ZONE # -----------------------------------------------------------------------------------
+################
+
+# test variables -----------------------------------------------------------------------------------
+
+if (is.windows()) {
+  # windows
+  oppni_path         <- "Z:\\SART_data\\oppni\\output_dir\\GO\\young\\processing_GO_sart_young_replicate_erGNB"
+  pickle_reader.path <- "Z:\\JE_packages\\glm_on_oppni\\pickle_reader.py"
+  template_fsf.path  <- "Z:\\JE_packages\\glm_on_oppni\\template.fsf"
+} else {
+  # cac
+  oppni_path         <- "/global/home/hpc3586/SART_data/oppni/output_dir/GO/young/processing_GO_sart_young_replicate_erGNB"
+  pickle_reader.path <- "/global/home/hpc3586/JE_packages/glm_on_oppni/pickle_reader.py"
+  template_fsf.path  <- "/global/home/hpc3586/JE_packages/glm_on_oppni/template.fsf"
+}
+
+oppni_input_path <- file.path(oppni_path, "input_file.txt")
+oppni_pipe_path  <- file.path(oppni_path, "pronto-options.pkl")
+
