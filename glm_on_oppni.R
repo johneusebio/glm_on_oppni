@@ -74,7 +74,7 @@ parse.oppni_input <- function(oppni_input_path) {
     if (length(line)==0) {break}
     
     line.count <- line.count+1
-    # print(line)
+
     line.0 <- parse.oppni_input.extract_line(line)
     line.0 <- parse.oppni_input.as_table(line.0, sort=T)
     
@@ -300,7 +300,7 @@ parse.split_info.ons3col <- function(split_info.list, output.file = NULL) {
     if (!is.null(output.file)) {
       write.table(x=tmp.3col, file=output.file, append=F, sep=" ", row.names=F, col.names=F)
       
-      split_info.list$cond[[cc]]$ONSETS_3COL.file <- output.file
+      split_info.list$cond[[cc]]$ONSETS_3COL_FILENAME <- output.file
     }
   }
   
@@ -350,7 +350,7 @@ oppni_fsf.subj <- function(oppni_row, oppni_task, oppni_pipe, oppni_pipe_config,
     stop("contrast must be specified as a numeric vector or a list of numeric vectors.")
   }
   
-  file_pattern <- basename(oppni_row$OUT)
+  file_pattern <- paste0(basename(oppni_row$OUT),'_*')
   
   # check if the contrasks are valid 
   oppni_fsf.check_con(oppni_task=oppni_task, contrast=contrast)
@@ -378,134 +378,140 @@ oppni_fsf.write_txt <- function(oppni_row, oppni_task, oppni_pipe, oppni_sNorm, 
     dir.create(feat_dir, showWarnings = F, recursive = T)
   }
   
+  print(output_dir)
+  print(feat_dir)
+  print(file_pattern)
+  
   fsf.path    <- file.path(fsf_dir, gsub(x=file_pattern, pattern="*", replacement="feat", fixed=T))
-  feat.output <- file.path(feat_dir, gsub(x=file_pattern, pattern="*", replacement="lvl1"))
+  fsf.path    <- paste0(fsf.path, '.fsf')
+  feat.output <- file.path(feat_dir, gsub(x=file_pattern, pattern="*", replacement="lvl1", fixed=T))
   
   nifti_file <- oppni_fsf.get_outputNifti(oppni_row, pipe = oppni_pipe)
-  
-  print(nifti_file)
   
   n_timepts  <- get.nifti.hdr(file = nifti_file, args = "-nv")
   n_voxels   <- get.nifti.hdr(file = nifti_file, args = "-n4")
   n_voxels   <- prod(as.numeric(unlist(strsplit(n_voxels, split = " "))), na.rm = T)
   
   # basic setup
-  cat('set fmri(version) 6.00', file = fsf.path, append = F)
-  cat('set fmri(level) 1', file=fsf.path, append=T)
-  cat('set fmri(analysis) 7', file=fsf.path, append=T)
-  cat('set fmri(relative_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(help_yn) 1', file=fsf.path, append=T)
-  cat('set fmri(featwatcher_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(sscleanup_yn) 0', file=fsf.path, append=T)
+  cat('set fmri(version) 6.00', '\n', file=fsf.path, append=F)
+  cat('set fmri(level) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(analysis) 7', '\n', file=fsf.path, append=T)
+  cat('set fmri(relative_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(help_yn) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(featwatcher_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(sscleanup_yn) 0', '\n', file=fsf.path, append=T)
   
   # define analysis_specific lines
-  cat(paste0('set fmri(otuputdir) "', feat.output, '"'), file=fsf.path, append=T)
-  cat('set fmri(tr) ', oppni_task$meta$TR_MSEC/1000, file=fsf.path, append=T)
-  cat('set fmri(npts) ', ntimepts, append = T)
-  cat('set fmri(ndelete) 0', file=fsf.path, append=T)
-  cat('set fmri(multiple) 1', file=fsf.path, append=T)
-  cat('set fmri(inputtype) 2', file=fsf.path, append=T)
-  cat('set fmri(filtering_yn) 1', file=fsf.path, append=T)
-  cat('set fmri(brain_thresh) 10', file=fsf.path, append=T)
-  cat('set fmri(critical_z) 5.3', file=fsf.path, append=T)
-  cat('set fmri(noise) 0.000000', file=fsf.path, append=T)
-  cat('set fmri(noisear) 0.000000', file=fsf.path, append=T)
-  cat('set fmri(mc) 0', file=fsf.path, append=T)
-  cat('set fmri(sh_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(regunwarp_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(gdc) ""', file=fsf.path, append=T)
-  cat('set fmri(dwell) 0.7', file=fsf.path, append=T)
-  cat('set fmri(te) 35', file=fsf.path, append=T)
-  cat('set fmri(signallossthresh) 10', file=fsf.path, append=T)
-  cat('set fmri(unwarp_dir) y-', file=fsf.path, append=T)
-  cat('set fmri(st) 0', file=fsf.path, append=T)
-  cat('set fmri(st_file) ""', file=fsf.path, append=T)
-  cat('set fmri(bet_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(smooth) 0.0', file=fsf.path, append=T)
-  cat('set fmri(norm_yn) 0',file=fsf.path, append=T)
-  cat('set fmri(perfsub_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(temphp_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(templp_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(melodic_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(stats_yn) 1', file=fsf.path, append=T)
-  cat('set fmri(prewhiten_yn) 1', file=fsf.path, append=T)
-  cat('set fmri(motionevs) 0', file=fsf.path, append=T)
-  cat('set fmri(motionevsbeta) ""', file=fsf.path, append=T)
-  cat('set fmri(scriptevsbeta) ""', file=fsf.path, append=T)
-  cat('set fmri(robust_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(mixed_yn) 2', file=fsf.path, append=T)
-  cat('set fmri(randomisePermutations) 5000', file=fsf.path, append=T)
+  cat(paste0('set fmri(outputdir) "', feat.output, '"'), '\n', file=fsf.path, append=T)
+  cat('set fmri(tr) ', oppni_task$meta$TR_MSEC/1000, '\n', file=fsf.path, append=T)
+  cat('set fmri(npts) ', n_timepts, '\n', file=fsf.path, append = T)
+  cat('set fmri(ndelete) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(multiple) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(inputtype) 2', '\n', file=fsf.path, append=T)
+  cat('set fmri(filtering_yn) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(brain_thresh) 10', '\n', file=fsf.path, append=T)
+  cat('set fmri(critical_z) 5.3', '\n', file=fsf.path, append=T)
+  cat('set fmri(noise) 0.000000', '\n', file=fsf.path, append=T)
+  cat('set fmri(noisear) 0.000000', '\n', file=fsf.path, append=T)
+  cat('set fmri(mc) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(sh_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(regunwarp_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(gdc) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(dwell) 0.7', '\n', file=fsf.path, append=T)
+  cat('set fmri(te) 35', '\n', file=fsf.path, append=T)
+  cat('set fmri(signallossthresh) 10', '\n', file=fsf.path, append=T)
+  cat('set fmri(unwarp_dir) y-', '\n', file=fsf.path, append=T)
+  cat('set fmri(st) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(st_file) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(bet_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(smooth) 0.0', '\n', file=fsf.path, append=T)
+  cat('set fmri(norm_yn) 0', '\n',file=fsf.path, append=T)
+  cat('set fmri(perfsub_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(temphp_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(templp_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(melodic_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(stats_yn) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(prewhiten_yn) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(motionevs) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(motionevsbeta) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(scriptevsbeta) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(robust_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(mixed_yn) 2', '\n', file=fsf.path, append=T)
+  cat('set fmri(randomisePermutations) 5000', '\n', file=fsf.path, append=T)
   
   # parameters specific to this analysis
-  cat('set fmri(evs_orig)', length(oppni_task$cond)  , file=fsf.path, append=T)
-  cat('set fmri(evs_orig)', length(oppni_task$cond)*2, file=fsf.path, append=T)
-  cat('set fmri(ncon_orig)', length(contrast), file=fsf.path, append=T)
-  cat('set fmri(ncon_real)', length(contrast), file=fsf.path, append=T)
-  cat('set fmri(nftests_orig) 0', file=fsf.path, append=T)
-  cat('set fmri(nftests_real) 0', file=fsf.path, append=T)
-  cat('set fmri(constcol) 0', file=fsf.path, append=T)
-  cat('set fmri(poststats_yn) 1', file=fsf.path, append=T)
-  cat('set fmri(threshmask) ""', file=fsf.path, append=T)
-  cat('set fmri(thresh) 3', file=fsf.path, append=T)
-  cat('set fmri(prob_thresh) 0.05', file=fsf.path, append=T)
-  cat('set fmri(z_thresh) 2.33', file=fsf.path, append=T)
-  cat('set fmri(zdisplay) 0', file=fsf.path, append=T)
-  cat('set fmri(zmin) 2', file=fsf.path, append=T)
-  cat('set fmri(zmax) 8', file=fsf.path, append=T)
-  cat('set fmri(rendertype) 1', file=fsf.path, append=T)
-  cat('set fmri(bgimage) 1', file=fsf.path, append=T)
-  cat('set fmri(tsplot_yn) 1', file=fsf.path, append=T)
-  cat('set fmri(reginitial_highres_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(reginitial_highres_search) 90', file=fsf.path, append=T)
-  cat('set fmri(reginitial_highres_dof) 3', file=fsf.path, append=T)
-  cat('set fmri(reghighres_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(reghighres_search) 90', file=fsf.path, append=T)
-  cat('set fmri(reghighres_dof) BBR', file=fsf.path, append=T)
-  cat('set fmri(regstandard_yn) 1', file=fsf.path, append=T)
-  cat('set fmri(alternateReference_yn) 0', fsf.path, append = T)
-  cat(paste0('set fmri(regstandard) "', oppni_pipe_config$reference,'"'), fsf.path, append = T)
-  cat('set fmri(regstandard_search) 90', file=fsf.path, append=T)
-  cat('set fmri(regstandard_dof) 3', file=fsf.path, append=T)
-  cat('set fmri(regstandard_nonlinear_yn) 0', file=fsf.path, append=T)
-  cat('set fmri(regstandard_nonlinear_warpres) 0', file=fsf.path, append=T)
-  cat('set fmri(paradigm_hp) 100', file=fsf.path, append=T)
-  cat('set fmri(totalVoxels) ', n_voxels, file=fsf.path, append=T)
-  cat('set fmri(ncopeinputs) 0', file=fsf.path, append=T)
-  cat(paste0('set feat_files(1) "', nifti_file,'"'), file=fsf.path, append=T)
-  cat('set fmri(confoundevs) 0', file=fsf.path, append=T)
+  cat('set fmri(evs_orig)', length(oppni_task$cond)  , '\n', file=fsf.path, append=T)
+  cat('set fmri(evs_real)', length(oppni_task$cond)*2, '\n', file=fsf.path, append=T)
+  cat('set fmri(evs_vox)', 0, '\n', file=fsf.path, append=T)
+  cat('set fmri(ncon_orig)', length(contrast), '\n', file=fsf.path, append=T)
+  cat('set fmri(ncon_real)', length(contrast), '\n', file=fsf.path, append=T)
+  cat('set fmri(nftests_orig) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(nftests_real) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(constcol) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(poststats_yn) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(threshmask) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(thresh) 3', '\n', file=fsf.path, append=T)
+  cat('set fmri(prob_thresh) 0.05', '\n', file=fsf.path, append=T)
+  cat('set fmri(z_thresh) 2.33', '\n', file=fsf.path, append=T)
+  cat('set fmri(zdisplay) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(zmin) 2', '\n', file=fsf.path, append=T)
+  cat('set fmri(zmax) 8', '\n', file=fsf.path, append=T)
+  cat('set fmri(rendertype) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(bgimage) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(tsplot_yn) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(reginitial_highres_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(reginitial_highres_search) 90', '\n', file=fsf.path, append=T)
+  cat('set fmri(reginitial_highres_dof) 3', '\n', file=fsf.path, append=T)
+  cat('set fmri(reghighres_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(reghighres_search) 90', '\n', file=fsf.path, append=T)
+  cat('set fmri(reghighres_dof) BBR', '\n', file=fsf.path, append=T)
+  cat('set fmri(regstandard_yn) 1', '\n', file=fsf.path, append=T)
+  cat('set fmri(alternateReference_yn) 0', '\n', file=fsf.path, append = T)
+  cat(paste0('set fmri(regstandard) "', oppni_pipe_config$reference,'"', '\n'), file=fsf.path, append = T)
+  cat('set fmri(regstandard_search) 90', '\n', file=fsf.path, append=T)
+  cat('set fmri(regstandard_dof) 3', '\n', file=fsf.path, append=T)
+  cat('set fmri(regstandard_nonlinear_yn) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(regstandard_nonlinear_warpres) 0', '\n', file=fsf.path, append=T)
+  cat('set fmri(paradigm_hp) 100', '\n', file=fsf.path, append=T)
+  cat('set fmri(totalVoxels) ', n_voxels, '\n', file=fsf.path, append=T)
+  cat('set fmri(ncopeinputs) 0', '\n', file=fsf.path, append=T)
+  cat(paste0('set feat_files(1) "', nifti_file,'"'), '\n', file=fsf.path, append=T)
+  cat('set fmri(confoundevs) 0', '\n', file=fsf.path, append=T)
   
   # add each condition as a seperate EV
   for (cc in 1:length(oppni_task$cond)) {
     cond.name <- oppni_task$cond[[cc]]$NAME
-    cond.file <- oppni_task$cond[[cc]]$ONSETS_3COL.file
+    cond.file <- oppni_task$cond[[cc]]$ONSETS_3COL_FILENAME
     
-    cat(paste0('set fmri(evtitle',cc,') "', cond.name, '"'), file=fsf.path, append=T)
-    cat(paste0('set fmri(shape'  ,cc,') 3'), file=fsf.path, append=T)
-    cat(paste0('set fmri(convolve'  ,cc,') 3'), file=fsf.path, append=T) # double-gamma HRF
-    cat(paste0('set fmri(convolve_phase'  ,cc,') 0'), file=fsf.path, append=T) 
-    cat(paste0('set fmri(tempfilt_yn'  ,cc,') 0'), file=fsf.path, append=T) 
-    cat(paste0('set fmri(deriv_yn'  ,cc,') 1'), file=fsf.path, append=T) # temporal derivative 
-    cat(paste0('set fmri(custom'  ,cc,') "', cond.file, '"'), file=fsf.path, append=T)
+    print(oppni_task$cond[[cc]])
+    
+    cat(paste0('set fmri(evtitle',cc,') "', cond.name, '"'), '\n', file=fsf.path, append=T)
+    cat(paste0('set fmri(shape'  ,cc,') 3'), '\n', file=fsf.path, append=T)
+    cat(paste0('set fmri(convolve'  ,cc,') 3'), '\n', file=fsf.path, append=T) # double-gamma HRF
+    cat(paste0('set fmri(convolve_phase'  ,cc,') 0'), '\n', file=fsf.path, append=T) 
+    cat(paste0('set fmri(tempfilt_yn'  ,cc,') 0'), '\n', file=fsf.path, append=T) 
+    cat(paste0('set fmri(deriv_yn'  ,cc,') 1'), '\n', file=fsf.path, append=T) # temporal derivative 
+    cat(paste0('set fmri(custom'  ,cc,') "', cond.file, '"'), '\n', file=fsf.path, append=T)
     
     # Orthogonalise EV cc wrt EV ii
     for (ii in 0:length(oppni_task$cond)) {
-      cat('set fmri(ortho',cc,'.',ii,') 0', file=fsf.path, append=T)
+      cat(paste0('set fmri(ortho',cc,'.',ii,') 0'), '\n', file=fsf.path, append=T)
     }
   }
   
   # contrast and F-test mode
-  cat('set fmri(con_mode_old) orig', file=fsf.path, append=T)
-  cat('set fmri(con_mode) orig', file=fsf.path, append=T)
+  cat('set fmri(con_mode_old) orig', '\n', file=fsf.path, append=T)
+  cat('set fmri(con_mode) orig', '\n', file=fsf.path, append=T)
   
   # add contrasts to the .fsf file
   for (cc in 1:length(contrast)) {
     con.title <- oppni_fsf.name_con(con_vector = contrast[[cc]], oppni_task = oppni_task)
     
     # Display images for contrast_real cc
-    cat(paste0('set fmri(conpic_real.',cc,') 1'), file=fsf.path, append=T)
+    cat(paste0('set fmri(conpic_real.',cc,') 1'), '\n', file=fsf.path, append=T)
     
     # Title for contrast_real cc
-    cat(paste0('set fmri(conname_real.',cc,') "',con.title,'"'), file=fsf.path, append=T)
+    cat(paste0('set fmri(conname_real.',cc,') "',con.title,'"'), '\n', file=fsf.path, append=T)
     
     rl.con.ind <- 0
     # the real contrasts
@@ -515,7 +521,7 @@ oppni_fsf.write_txt <- function(oppni_row, oppni_task, oppni_pipe, oppni_sNorm, 
         rl.con.val <- ifelse(cci.i==1, yes = contrast[[cc]][cci], no = 0)
         
         # Real contrast_real vector cc element rl.con.ind
-        cat(paste0('set fmri(con_real',cc,'.',rl.con.ind,') ',rl.con.val), file=fsf.path, append=T)
+        cat(paste0('set fmri(con_real',cc,'.',rl.con.ind,') ',rl.con.val), '\n', file=fsf.path, append=T)
       }
     }
   }
@@ -524,30 +530,30 @@ oppni_fsf.write_txt <- function(oppni_row, oppni_task, oppni_pipe, oppni_sNorm, 
   for (cc in 1:length(contrast)) {
     con.title <- oppni_fsf.name_con(con_vector = contrast[[cc]], oppni_task = oppni_task)
     
-    cat(paste0('set fmri(conpic_orig.',cc,') 1'), file=fsf.path, append=T)
-    cat(paste0('set fmri(conname_orig.',cc,') "',con.title,'"'), file=fsf.path, append=T)
+    cat(paste0('set fmri(conpic_orig.',cc,') 1'), '\n', file=fsf.path, append=T)
+    cat(paste0('set fmri(conname_orig.',cc,') "',con.title,'"'), '\n', file=fsf.path, append=T)
     
     for (cc.i in 1:length(contrast[[cc]])) {
-      cat(paste0('set fmri(con_orig',cc,'.',cc.i,') ',contrast[[cc]][cc.i]), file=fsf.path, append=T)
+      cat(paste0('set fmri(con_orig',cc,'.',cc.i,') ',contrast[[cc]][cc.i]), '\n', file=fsf.path, append=T)
     }
   }
   
   # contrast masking
-  cat('set fmri(conmask_zerothresh_yn) 0', file=fsf.path, append=T)
+  cat('set fmri(conmask_zerothresh_yn) 0', '\n', file=fsf.path, append=T)
   for (cc in 1:length(contrast)) {
     for (dd in 1:length(contrast)) {
       if (cc==dd) {next}
-      cat(paste0('set fmri(conmask',cc,'_',dd,') 0'), file=fsf.path, append=T)
+      cat(paste0('set fmri(conmask',cc,'_',dd,') 0'), '\n', file=fsf.path, append=T)
     }
   }
-  cat('set fmri(conmask1_1) 0', file=fsf.path, append=T) # do any contrast masking at all?
+  cat('set fmri(conmask1_1) 0', '\n', file=fsf.path, append=T) # do any contrast masking at all?
   
   # Now options that don't appear in the GUI
-  cat('set fmri(alternative_mask) ""', file=fsf.path, append=T)
-  cat('set fmri(init_initial_highres) ""', file=fsf.path, append=T)
-  cat('set fmri(init_highres) ""', file=fsf.path, append=T)
-  cat('set fmri(init_standard) ""', file=fsf.path, append=T)
-  cat('set fmri(overwrite_yn) 1', file=fsf.path, append=T)
+  cat('set fmri(alternative_mask) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(init_initial_highres) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(init_highres) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(init_standard) ""', '\n', file=fsf.path, append=T)
+  cat('set fmri(overwrite_yn) 1', '\n', file=fsf.path, append=T)
 }
 
 oppni_fsf.get_outputNifti <- function(oppni_row, pipe, sNorm=T) {
